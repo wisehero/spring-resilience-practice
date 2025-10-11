@@ -1,1 +1,17 @@
-spring.application.name=callee
+server:
+  port: 8081
+  shutdown: graceful
+
+spring:
+  application:
+    name: callee
+
+logging:
+  level:
+    com.wisehero.callee: DEBUG
+
+management:
+  server:
+    port: 9081
+
+

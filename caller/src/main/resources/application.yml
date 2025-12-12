@@ -5,5 +5,44 @@ server:
 spring:
   application:
     name: caller
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: false # 이 설정이 있어야 Feign이 Circuit Breaker와 연동됩니다.
+        group:
+          enabled: true
+    circuitbreaker:
+      resilience4j:
+        enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      callee-client-v1:
+        # [설정 1] 슬라이딩 윈도우: 최근 호출 횟수 기준
+        slidingWindowType: COUNT_BASED
+        # [설정 2] 최근 10번의 요청을 기억
+        slidingWindowSize: 10
+        # [설정 3] 최소 5번은 호출되어야 실패율 계산 시작 (테스트용으로 작게 설정)
+        minimumNumberOfCalls: 5
+        # [설정 4] 실패율 50% 넘으면 서킷 OPEN (차단)
+        failureRateThreshold: 50
+        # [설정 5] 서킷 OPEN 후 20초 동안은 무조건 차단 (그 후 Half-Open)
+        waitDurationInOpenState: 20s
+        # [설정 6] Half-Open 상태에서 3번 테스트해보고 결정
+        permittedNumberOfCallsInHalfOpenState: 3
 
 
+
+management:
+  server:
+    port: 9080
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+
+callee:
+  service:
+    url: http://localhost:8081/api/v1/callee

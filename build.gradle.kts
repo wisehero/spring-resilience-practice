@@ -1,6 +1,3 @@
-import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
-import org.gradle.kotlin.dsl.configure
-
 fun getGitHash(): String {
     return runCatching {
         providers.exec {
@@ -31,18 +28,25 @@ allprojects {
     }
 }
 
+extra["springCloudVersion"] = "2025.0.0"
+
 subprojects {
     apply(plugin = "java")
     apply(plugin = "org.springframework.boot")
     apply(plugin = "io.spring.dependency-management")
 
-    dependencies {
-        implementation("org.springframework.boot:spring-boot-starter")
+    the<io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension>().apply {
+        imports {
+            mavenBom("org.springframework.cloud:spring-cloud-dependencies:${rootProject.extra["springCloudVersion"]}")
+        }
+    }
 
+    dependencies {
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")
 
         testImplementation("org.springframework.boot:spring-boot-starter-test")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.withType<Test> {

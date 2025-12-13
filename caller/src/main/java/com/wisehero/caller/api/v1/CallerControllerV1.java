@@ -25,6 +25,12 @@ public class CallerControllerV1 {
 		return calleeService.callHello();
 	}
 
+	@GetMapping("/test-circuit-flow")
+	public ApiResponse<CircuitTestResponse> testCircuitFlow() {
+		log.info("[Caller] test-circuit-flow 호출");
+		return calleeService.callCircuitTest();
+	}
+
 	@GetMapping("/test-slow")
 	public ApiResponse<String> testSlow() {
 		log.info("[Caller] test-slow 호출");

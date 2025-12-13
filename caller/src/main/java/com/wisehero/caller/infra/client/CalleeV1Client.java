@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.wisehero.caller.api.ApiResponse;
+import com.wisehero.caller.api.v1.CircuitTestResponse;
 
 @FeignClient(
 	name = "callee-client-v1",
@@ -13,6 +14,9 @@ import com.wisehero.caller.api.ApiResponse;
 public interface CalleeV1Client {
 	@GetMapping("/hello")
 	ApiResponse<HelloResponse> hello();
+
+	@GetMapping("/circuit-test")
+	ApiResponse<CircuitTestResponse> circuitTest();
 
 	@GetMapping("/slow")
 	ApiResponse<String> slow();

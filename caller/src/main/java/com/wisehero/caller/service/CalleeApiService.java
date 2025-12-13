@@ -3,9 +3,12 @@ package com.wisehero.caller.service;
 import org.springframework.stereotype.Service;
 
 import com.wisehero.caller.api.ApiResponse;
+import com.wisehero.caller.api.v1.CallerControllerV1;
+import com.wisehero.caller.api.v1.CircuitTestResponse;
 import com.wisehero.caller.infra.client.CalleeV1Client;
 import com.wisehero.caller.infra.client.HelloResponse;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,13 @@ public class CalleeApiService {
 		log.info("Calling hello endpoint");
 		return calleeV1Client.hello();
 	}
+
+	@CircuitBreaker(name = "callee-client-v1", fallbackMethod = "circuitTestFallback")
+	public ApiResponse<CircuitTestResponse> callCircuitTest() {
+		log.info("Calling circuit-test endpoint");
+		return calleeV1Client.circuitTest();
+	}
+
 
 	@CircuitBreaker(name = "callee-client-v1", fallbackMethod = "slowFallback")
 	public ApiResponse<String> callSlow() {
@@ -44,6 +54,23 @@ public class CalleeApiService {
 		log.error("⚠️ Hello Fallback - Reason: {}", e.getMessage());
 		HelloResponse fallbackResponse = new HelloResponse(
 			"Fallback: Service unavailable",
+			System.currentTimeMillis()
+		);
+		return ApiResponse.success(fallbackResponse);
+	}
+
+	private ApiResponse<CircuitTestResponse> circuitTestFallback(Exception e) {
+		log.error("⚠️ Circuit Test Fallback - Reason: {}", e.getMessage());
+
+		// Circuit이 OPEN 상태인지 확인
+		if (e instanceof CallNotPermittedException) {
+			log.error("🔴 Circuit is OPEN - Call not permitted!");
+		}
+
+		CircuitTestResponse fallbackResponse = new CircuitTestResponse(
+			-1,
+			-1,
+			"Fallback: " + e.getClass().getSimpleName(),
 			System.currentTimeMillis()
 		);
 		return ApiResponse.success(fallbackResponse);

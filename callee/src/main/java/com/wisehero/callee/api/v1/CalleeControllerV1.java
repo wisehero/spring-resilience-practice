@@ -1,5 +1,6 @@
 package com.wisehero.callee.api.v1;
 
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -89,9 +90,18 @@ public class CalleeControllerV1 {
 	// 4XX 오류 응답
 	@GetMapping("/4xx-error")
 	public ApiResponse<Object> error4xx() {
-		log.warn("Error endpoint called");
+		log.warn("Random 4xx error endpoint called");
 
-		throw new CoreException(ErrorType.BAD_REQUEST, "BAD REQUEST error");
+		ErrorType[] errorTypes = {
+			ErrorType.BAD_REQUEST,
+			ErrorType.NOT_FOUND,
+			ErrorType.CONFLICT
+		};
+
+		ErrorType randomError = errorTypes[new Random().nextInt(errorTypes.length)];
+		log.warn("Throwing random error: {}", randomError.getStatus());
+
+		throw new CoreException(randomError, "Random " + randomError.getStatus().getReasonPhrase());
 	}
 
 	// 500 오류 응답

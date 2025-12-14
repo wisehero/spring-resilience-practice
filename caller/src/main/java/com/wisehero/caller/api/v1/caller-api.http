@@ -1,0 +1,147 @@
+### Circuit Breaker - 4xx vs 5xx 에러 처리 차이 테스트
+
+### 테스트 목적:
+### 1. 4xx 에러는 Circuit Breaker가 무시한다 (ignoreExceptions)
+### 2. 5xx 에러는 Circuit Breaker가 실패로 기록한다
+### 3. 5xx 에러가 임계값을 넘으면 Circuit이 OPEN된다
+
+###
+### [Phase 1] 초기 상태 확인
+###
+
+### 1-1. Circuit 초기 상태 확인 (CLOSED 상태여야 함)
+GET http://localhost:9080/actuator/circuitbreakers
+
+### 예상: state: "CLOSED", bufferedCalls: 0
+
+###
+### [Phase 2] 4xx 에러로는 Circuit이 열리지 않는 것 확인
+###
+
+### 2-1. 4xx 에러를 10번 연속 발생 (slidingWindowSize 만큼)
+### 이 모든 요청이 실패하더라도 Circuit은 CLOSED 상태를 유지해야 함
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-4xx
+
+###
+
+### 2-2. Circuit 상태 확인
+### 4xx 에러가 10번 발생했지만 Circuit은 여전히 CLOSED여야 함
+GET http://localhost:9080/actuator/circuitbreakers
+
+### 예상: state: "CLOSED", bufferedCalls: 0 (4xx는 카운트 안됨!)
+
+###
+
+### 2-3. Circuit 이벤트 확인 (참고용)
+### 4xx 에러는 Circuit 이벤트로 기록되지 않아야 함
+GET http://localhost:9080/actuator/circuitbreakerevents
+
+###
+### [Phase 3] 5xx 에러로 Circuit이 열리는 것 확인 (대조군)
+###
+
+### 3-1. 500 에러를 6번 발생시켜서 Circuit OPEN 유도
+### (10개 중 6개 실패 = 60% 실패율 > 50% 임계값)
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+GET http://localhost:8080/api/v1/caller/test-error-500
+
+###
+
+### 3-2. Circuit 상태 확인 (OPEN으로 전환되어야 함)
+GET http://localhost:9080/actuator/circuitbreakers
+
+### 예상: state: "OPEN", failureRate: "100.0%" 또는 높은 실패율
+
+###
+
+### 3-3. OPEN 상태에서 요청 시도 (바로 Fallback)
+### Callee에 도달하지 않고 즉시 Fallback 응답
+GET http://localhost:8080/api/v1/caller/test-hello
+
+### 예상: Fallback 응답, Callee 로그 없음
+
+###
+### [Phase 4] 정리 및 결론 확인
+###
+
+### 4-1. Circuit 이벤트 전체 확인
+GET http://localhost:9080/actuator/circuitbreakerevents
+
+### 예상:
+### - 4xx 에러 관련 이벤트는 없어야 함
+### - 5xx 에러 관련 ERROR 이벤트가 6개 있어야 함
+### - STATE_TRANSITION 이벤트 (CLOSED -> OPEN)가 있어야 함
+
+###
+### ============================================================
+### 테스트 시나리오 요약
+### ============================================================
+###
+### [검증 포인트 1] 4xx 에러의 무시 확인
+### - Phase 2에서 10번의 4xx 에러 발생
+### - Circuit 상태: CLOSED 유지
+### - bufferedCalls: 0 (카운트 안됨)
+###
+### [검증 포인트 2] 5xx 에러의 기록 확인
+### - Phase 3에서 6번의 5xx 에러 발생
+### - Circuit 상태: OPEN으로 전환
+### - failureRate: 100% (모든 5xx 에러가 카운트됨)
+###
+##

@@ -31,6 +31,12 @@ resilience4j:
         waitDurationInOpenState: 20s
         # [설정 6] Half-Open 상태에서 3번 테스트해보고 결정
         permittedNumberOfCallsInHalfOpenState: 3
+        ignore-exceptions: # 아래의 예외들은 무시한다.
+          - feign.FeignException.BadRequest
+          - feign.FeignException.Unauthorized
+          - feign.FeignException.Forbidden
+          - feign.FeignException.NotFound
+          - feign.FeignException.Conflict
 
 
 

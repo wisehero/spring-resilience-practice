@@ -20,6 +20,7 @@ public class CalleeApiService {
 
 	private final CalleeV1Client calleeV1Client;
 
+	@CircuitBreaker(name = "callee-client-v1", fallbackMethod = "circuitTestFallback")
 	public ApiResponse<HelloResponse> callHello() {
 		log.info("Calling hello endpoint");
 		return calleeV1Client.hello();

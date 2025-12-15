@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import com.wisehero.caller.api.ApiResponse;
 import com.wisehero.caller.api.v1.CircuitTestResponse;
 
+import io.github.resilience4j.retry.annotation.Retry;
+
 @FeignClient(
 	name = "callee-client-v1",
 	url = "${callee.service.url}"
@@ -26,6 +28,9 @@ public interface CalleeV1Client {
 
 	@GetMapping("/500-error")
 	ApiResponse<Object> error500();
+
+	@GetMapping("/503-error")
+	ApiResponse<Object> error503();
 
 	@GetMapping("/random-error")
 	ApiResponse<String> randomError();

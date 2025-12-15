@@ -1,7 +1,12 @@
 package com.wisehero.callee.api.v1;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.rmi.server.SocketSecurityException;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.naming.ServiceUnavailableException;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -109,6 +114,12 @@ public class CalleeControllerV1 {
 	public ApiResponse<Object> error5xx() {
 		log.error("Error endpoint called");
 		throw new CoreException(ErrorType.INTERNAL_ERROR, "Internal error");
+	}
+
+	@GetMapping("/503-error")
+	public ApiResponse<Object> error503() {
+		log.error("503 Service Unavailable endpoint called");
+		throw new CoreException(ErrorType.SERVICE_UNAVAILABLE, "Service Unavailable");
 	}
 
 	// n초 지연 응답

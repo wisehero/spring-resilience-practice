@@ -48,4 +48,10 @@ public class CallerControllerV1 {
 		log.info("[Caller] test-error-500 호출");
 		return calleeService.call500Error();
 	}
+
+	@GetMapping("/test-error-503")
+	public ApiResponse<Object> testError503() {
+		log.info("[Caller] test-error-503 호출");
+		return calleeService.call503Error();
+	}
 }

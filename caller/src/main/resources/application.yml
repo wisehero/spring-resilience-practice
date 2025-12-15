@@ -11,9 +11,18 @@ spring:
         enabled: false # 이 설정이 있어야 Feign이 Circuit Breaker와 연동됩니다.
         group:
           enabled: true
+      client:
+        config:
+          callee-client-v1:
+            connect-timeout: 2000
+            read-timeout: 3000
     circuitbreaker:
       resilience4j:
         enabled: true
+
+logging:
+  level:
+    com.wisehero.caller: DEBUG
 
 resilience4j:
   circuitbreaker:

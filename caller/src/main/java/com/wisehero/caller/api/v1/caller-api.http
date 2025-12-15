@@ -1,147 +1,102 @@
-### Circuit Breaker - 4xx vs 5xx 에러 처리 차이 테스트
+### Retry Pattern 테스트 - 500 vs 503 비교
 
 ### 테스트 목적:
-### 1. 4xx 에러는 Circuit Breaker가 무시한다 (ignoreExceptions)
-### 2. 5xx 에러는 Circuit Breaker가 실패로 기록한다
-### 3. 5xx 에러가 임계값을 넘으면 Circuit이 OPEN된다
+### 1. 503 에러는 재시도됨 (retryExceptions에 포함)
+### 2. 500 에러는 재시도 안됨 (ignoreExceptions에 포함)
+### 3. 로그로 재시도 횟수 확인
 
 ###
-### [Phase 1] 초기 상태 확인
+### [Phase 1] 503 에러 - Retry 동작 확인
 ###
 
-### 1-1. Circuit 초기 상태 확인 (CLOSED 상태여야 함)
-GET http://localhost:9080/actuator/circuitbreakers
+### 1-1. 503 에러 발생 (재시도 3번 수행됨)
+GET http://localhost:8080/api/v1/caller/test-error-503
 
-### 예상: state: "CLOSED", bufferedCalls: 0
-
-###
-### [Phase 2] 4xx 에러로는 Circuit이 열리지 않는 것 확인
-###
-
-### 2-1. 4xx 에러를 10번 연속 발생 (slidingWindowSize 만큼)
-### 이 모든 요청이 실패하더라도 Circuit은 CLOSED 상태를 유지해야 함
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
+### 예상 로그:
+### - "Calling error 503 endpoint" 로그가 3번 출력됨
+### - Callee에서 "503 Service Unavailable endpoint called" 3번 출력
+### - 각 재시도마다 1초 간격
+### - 최종적으로 Fallback 실행
 
 ###
 
-GET http://localhost:8080/api/v1/caller/test-error-4xx
+### 1-2. Circuit 이벤트 확인
+GET http://localhost:9080/actuator/circuitbreakerevents
+
+### 예상:
+### - RETRY 관련 이벤트 확인 가능
+### - 3번 재시도 후 최종 실패로 기록
 
 ###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
+### [Phase 2] 500 에러 - Retry 하지 않음 확인
 ###
 
-GET http://localhost:8080/api/v1/caller/test-error-4xx
+### 2-1. 500 에러 발생 (재시도 안함)
+GET http://localhost:8080/api/v1/caller/test-error-500
 
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-4xx
+### 예상 로그:
+### - "Calling error 500 endpoint" 로그가 1번만 출력됨
+### - Callee에서 "Error endpoint called" 1번만 출력
+### - 재시도 없이 바로 Fallback 실행
 
 ###
 
 ### 2-2. Circuit 상태 확인
-### 4xx 에러가 10번 발생했지만 Circuit은 여전히 CLOSED여야 함
 GET http://localhost:9080/actuator/circuitbreakers
 
-### 예상: state: "CLOSED", bufferedCalls: 0 (4xx는 카운트 안됨!)
+### 503은 3번 실패로 카운트, 500은 1번 실패로 카운트됨
+
+###
+### [Phase 3] 비교 테스트 - 로그 타이밍 확인
+###
+
+### 3-1. 503 에러 호출 (재시도로 인해 약 3초 소요)
+GET http://localhost:8080/api/v1/caller/test-error-503
+
+### 시작 시간과 종료 시간을 확인하세요
+### 예상: 약 3초 소요 (재시도 2번 × 1초 대기 + 처리 시간)
 
 ###
 
-### 2-3. Circuit 이벤트 확인 (참고용)
-### 4xx 에러는 Circuit 이벤트로 기록되지 않아야 함
-GET http://localhost:9080/actuator/circuitbreakerevents
-
-###
-### [Phase 3] 5xx 에러로 Circuit이 열리는 것 확인 (대조군)
-###
-
-### 3-1. 500 에러를 6번 발생시켜서 Circuit OPEN 유도
-### (10개 중 6개 실패 = 60% 실패율 > 50% 임계값)
-
+### 3-2. 500 에러 호출 (재시도 없어서 즉시 완료)
 GET http://localhost:8080/api/v1/caller/test-error-500
 
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-500
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-500
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-500
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-500
-
-###
-
-GET http://localhost:8080/api/v1/caller/test-error-500
-
-###
-
-### 3-2. Circuit 상태 확인 (OPEN으로 전환되어야 함)
-GET http://localhost:9080/actuator/circuitbreakers
-
-### 예상: state: "OPEN", failureRate: "100.0%" 또는 높은 실패율
-
-###
-
-### 3-3. OPEN 상태에서 요청 시도 (바로 Fallback)
-### Callee에 도달하지 않고 즉시 Fallback 응답
-GET http://localhost:8080/api/v1/caller/test-hello
-
-### 예상: Fallback 응답, Callee 로그 없음
-
-###
-### [Phase 4] 정리 및 결론 확인
-###
-
-### 4-1. Circuit 이벤트 전체 확인
-GET http://localhost:9080/actuator/circuitbreakerevents
-
-### 예상:
-### - 4xx 에러 관련 이벤트는 없어야 함
-### - 5xx 에러 관련 ERROR 이벤트가 6개 있어야 함
-### - STATE_TRANSITION 이벤트 (CLOSED -> OPEN)가 있어야 함
+### 시작 시간과 종료 시간을 확인하세요
+### 예상: 즉시 완료 (재시도 없음)
 
 ###
 ### ============================================================
 ### 테스트 시나리오 요약
 ### ============================================================
 ###
-### [검증 포인트 1] 4xx 에러의 무시 확인
-### - Phase 2에서 10번의 4xx 에러 발생
-### - Circuit 상태: CLOSED 유지
-### - bufferedCalls: 0 (카운트 안됨)
+### [검증 포인트 1] 503 에러의 Retry 동작
+### - Callee 로그가 3번 출력됨 (최초 1번 + 재시도 2번)
+### - 각 시도 사이에 1초 간격
+### - 총 소요 시간: 약 3초
+### - 최종적으로 Fallback 실행
 ###
-### [검증 포인트 2] 5xx 에러의 기록 확인
-### - Phase 3에서 6번의 5xx 에러 발생
-### - Circuit 상태: OPEN으로 전환
-### - failureRate: 100% (모든 5xx 에러가 카운트됨)
+### [검증 포인트 2] 500 에러는 Retry 안함
+### - Callee 로그가 1번만 출력됨
+### - 재시도 없이 즉시 Fallback
+### - 총 소요 시간: 즉시
 ###
-##
+### [검증 포인트 3] Circuit Breaker와의 상호작용
+### - 503: Retry 3번 모두 실패 → Circuit에 실패로 기록
+### - 500: Retry 없이 1번 실패 → Circuit에 실패로 기록
+### - 둘 다 Circuit 상태에 영향을 줌
+###
+### [예상 로그 패턴]
+###
+### 503 에러:
+### 15:30:00 [Caller] test-error-503 호출
+### 15:30:00 Calling error 503 endpoint (1차 시도)
+### 15:30:01 Calling error 503 endpoint (2차 시도, 1초 후)
+### 15:30:02 Calling error 503 endpoint (3차 시도, 1초 후)
+### 15:30:02 ⚠️ 503 Error Fallback
+###
+### 500 에러:
+### 15:30:05 [Caller] test-error-500 호출
+### 15:30:05 Calling error 500 endpoint (1차 시도만)
+### 15:30:05 ⚠️ 500 Error Fallback (즉시)
+###
+### ============================================================
